@@ -9,6 +9,34 @@ GitPush = require './git-push'
 
 module.exports =
 class GitCommit
+  constructor: (@repo, {@amend, @andPush}={}) ->
+    @currentPane = atom.workspace.getActivePane()
+    @disposables = new CompositeDisposable
+
+    # Check if we are amending right now.
+    @amend ?= ''
+    @isAmending = @amend.length > 0
+
+    # Load the commentchar from git config, defaults to '#'
+    git.cmd
+      args: ['config', '--get', 'core.commentchar'],
+      stdout: (data) =>
+        @setCommentChar data.trim()
+      stderr: =>
+        @setCommentChar '#'
+
+    git.stagedFiles @repo, (files) =>
+      console.debug "Working in", @repo
+      console.debug "Staged files are", files
+      if @amend isnt '' or files.length >= 1
+        git.cmd
+          args: ['status'],
+          cwd: @repo.getWorkingDirectory()
+          stdout: (data) => @prepFile data
+      else
+        @cleanup()
+        notifier.addInfo 'Nothing to commit.'
+
   # Public: Helper method to set the commentchar to be used in
   #   the commit message
   setCommentChar: (char) ->
@@ -29,32 +57,6 @@ class GitCommit
   #
   # Returns: The full path to our COMMIT_EDITMSG file as {String}
   filePath: -> Path.join(@dir(), 'COMMIT_EDITMSG')
-
-  constructor: (@repo, {@amend, @andPush}={}) ->
-    @currentPane = atom.workspace.getActivePane()
-    @disposables = new CompositeDisposable
-
-    # Check if we are amending right now.
-    @amend ?= ''
-    @isAmending = @amend.length > 0
-
-    # Load the commentchar from git config, defaults to '#'
-    git.cmd
-      args: ['config', '--get', 'core.commentchar'],
-      stdout: (data) =>
-        @setCommentChar data.trim()
-      stderr: =>
-        @setCommentChar '#'
-
-    git.stagedFiles @repo, (files) =>
-      if @amend isnt '' or files.length >= 1
-        git.cmd
-          args: ['status'],
-          cwd: @repo.getWorkingDirectory()
-          stdout: (data) => @prepFile data
-      else
-        @cleanup()
-        notifier.addInfo 'Nothing to commit.'
 
   # Public: Prepares our commit message file by writing the status and a
   #         possible amend message to it.
