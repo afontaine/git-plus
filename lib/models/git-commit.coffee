@@ -30,7 +30,7 @@ class GitCommit
   # Returns: The full path to our COMMIT_EDITMSG file as {String}
   filePath: -> Path.join(@dir(), 'COMMIT_EDITMSG')
 
-  constructor: (@repo, {@amend, @andPush}={}) ->
+  constructor: (@repo, {@amend, @andPush, @stageChanges}={}) ->
     @currentPane = atom.workspace.getActivePane()
     @disposables = new CompositeDisposable
 
@@ -46,6 +46,14 @@ class GitCommit
       stderr: =>
         @setCommentChar '#'
 
+    if @stageChanges
+      git.add @repo,
+        update: true,
+        exit: (code) => @getStagedFiles()
+    else
+      @getStagedFiles()
+
+  getStagedFiles: ->
     git.stagedFiles @repo, (files) =>
       if @amend isnt '' or files.length >= 1
         git.cmd
