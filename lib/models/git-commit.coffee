@@ -115,7 +115,9 @@ class GitCommit
   # Public: When the user is done editing the commit message an saves the file
   #         this method gets invoked and commits the changes.
   commit: ->
-    args = ['commit', '--cleanup=strip', "--file=#{@filePath()}"]
+    args = ['commit']
+    args.push '--amend' if @amend isnt ''
+    args.concat ['--cleanup=strip', "--file=#{@filePath()}"]
     git.cmd
       args: args,
       options:
