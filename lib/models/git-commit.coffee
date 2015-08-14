@@ -13,16 +13,14 @@ class GitCommit
   #
   # Returns: The cwd as a String.
   dir: ->
-    # path is different for submodules
     if @submodule ?= git.getSubmodule()
       @submodule.getWorkingDirectory()
     else
       @repo.getWorkingDirectory()
 
-  # Public: Helper method to join @dir() and filename to use it with fs.
-  #
-  # Returns: The full path to our COMMIT_EDITMSG file as {String}
   filePath: -> Path.join(@repo.getPath(), 'COMMIT_EDITMSG')
+
+  backupFilePath: -> Path.join(@repo.getPath(), 'COMMIT_EDITMSG_BAK')
 
   constructor: (@repo, {@amend, @andPush}={}) ->
     @currentPane = atom.workspace.getActivePane()
@@ -117,13 +115,14 @@ class GitCommit
   commit: ->
     args = ['commit']
     args.push '--amend' if @amend isnt ''
-    args.concat ['--cleanup=strip', "--file=#{@filePath()}"]
+    args = args.concat ['--cleanup=strip', "--file=#{@filePath()}"]
     git.cmd
       args: args,
       options:
         cwd: @dir()
       stdout: (data) =>
         notifier.addSuccess data
+        fs.writeFileSync @backupFilePath(), fs.readFileSync(@filePath())
         if @andPush
           new GitPush(@repo)
         @isAmending = false
