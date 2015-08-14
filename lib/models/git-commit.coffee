@@ -20,7 +20,7 @@ class GitCommit
 
   filePath: -> Path.join(@repo.getPath(), 'COMMIT_EDITMSG')
 
-  backupFilePath: -> Path.join(@repo.getPath(), 'COMMIT_EDITMSG_BAK')
+  backupFilePath: -> Path.join(@repo.getPath(), 'LAST_STATUS_BAK')
 
   constructor: (@repo, {@amend, @andPush}={}) ->
     @currentPane = atom.workspace.getActivePane()
@@ -52,18 +52,19 @@ class GitCommit
   #         possible amend message to it.
   #
   # status - The current status as {String}.
-  prepFile: (status) ->
+  prepFile: (@status) ->
     # format the status to be ignored in the commit message
-    status = status.replace(/\s*\(.*\)\n/g, "\n")
-    status = status.trim().replace(/\n/g, "\n#{@commentchar} ")
+    @status = @status.replace(/\s*\(.*\)\n/g, "\n")
+    @status = @status.trim().replace(/\n/g, "\n#{@commentchar} ")
+    @status + fs.readFileSync @backupFilePath() if @isAmending
 
     @getTemplate().then (template) =>
       fs.writeFileSync @filePath(),
-        """#{ if @amend.length > 0 then @amend else template}
+        """#{ if @isAmending then @amend else template}
         #{@commentchar} Please enter the commit message for your changes. Lines starting
         #{@commentchar} with '#{@commentchar}' will be ignored, and an empty message aborts the commit.
         #{@commentchar}
-        #{@commentchar} #{status}"""
+        #{@commentchar} #{@status}"""
       @showFile()
 
   getTemplate: ->
@@ -114,7 +115,7 @@ class GitCommit
   #         this method gets invoked and commits the changes.
   commit: ->
     args = ['commit']
-    args.push '--amend' if @amend isnt ''
+    args.push '--amend' if @isAmending
     args = args.concat ['--cleanup=strip', "--file=#{@filePath()}"]
     git.cmd
       args: args,
@@ -122,7 +123,7 @@ class GitCommit
         cwd: @dir()
       stdout: (data) =>
         notifier.addSuccess data
-        fs.writeFileSync @backupFilePath(), fs.readFileSync(@filePath())
+        fs.writeFileSync @backupFilePath(), @status
         if @andPush
           new GitPush(@repo)
         @isAmending = false
