@@ -21,8 +21,8 @@ class ListView extends SelectListView
     }]
     for item in items
       remotes.push {name: item} unless item is ''
-    if remotes.length is 1
-      @confirmed remotes[0]
+    if remotes.length is 2
+      @confirmed remotes[1]
     else
       @setItems remotes
       @focusFilterEditor()
