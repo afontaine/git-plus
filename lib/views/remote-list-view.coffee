@@ -16,7 +16,9 @@ class ListView extends SelectListView
 
   parseData: ->
     items = @data.split("\n")
-    remotes = []
+    remotes = [{
+      name: '== Current Branch =='
+    }]
     for item in items
       remotes.push {name: item} unless item is ''
     if remotes.length is 1
@@ -44,10 +46,19 @@ class ListView extends SelectListView
 
   confirmed: ({name}) ->
     if @mode is 'pull'
-      git.cmd
-        args: ['branch', '-r'],
-        cwd: @repo.getWorkingDirectory()
-        stdout: (data) => new PullBranchListView(@repo, data, name, @extraArgs)
+      if name is not "== Current Branch =="
+        git.cmd
+          args: ['branch', '-r'],
+          cwd: @repo.getWorkingDirectory()
+          stdout: (data) => new PullBranchListView(@repo, data, name, @extraArgs)
+      else
+        view = new OutputView
+        git.cmd
+          args: ['pull']
+          cwd: @repo.getWorkingDirectory()
+          stdout: (data) -> view.addLine data.toString()
+          stderr: (data) -> view.addLine data.toString()
+          exit: (data) -> view.finish()
     else if @mode is 'fetch-prune'
       @mode = 'fetch'
       @execute name, '--prune'
